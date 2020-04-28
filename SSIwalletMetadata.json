@@ -1,0 +1,11 @@
+[{
+    "entityId" : "uPort",
+    "defaultDisplayName" : "uPort SSI Wallet",
+    "displayNames" : null,
+    "logo" : null,
+    "microservice" : [
+        "uPort_ms001"
+    ]
+}
+]
+

@@ -1,4 +1,5 @@
 import { Table, Container, Row, Col, Button } from "react-bootstrap";
+import { getPath } from "../helpers/pathHelper";
 
 const QrPrompt = props => {
   let index = 0;
@@ -47,7 +48,7 @@ const QrPrompt = props => {
                   target="_blank"
                   className="w-inline-block"
                 >
-                  <img className="img-fluid" src="/app-store.png" />
+                  <img className="img-fluid" src={`${props.baseUrl}app-store.png`} />
                 </a>
               </Col>
               <Col>
@@ -56,7 +57,7 @@ const QrPrompt = props => {
                   target="_blank"
                   className="w-inline-block"
                 >
-                  <img className="img-fluid" src="/play-store.png" />
+                  <img className="img-fluid" src={`${props.baseUrl}play-store.png`} />
                 </a>
               </Col>
             </Row>

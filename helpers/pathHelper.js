@@ -1,4 +1,5 @@
-
+const NodeCache = require("node-cache");
+const claimsCache = new NodeCache();
 
 function getPath(relativePath) {
 

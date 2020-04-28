@@ -55,7 +55,7 @@ class Index extends React.Component {
       reduxStore.dispatch(setServerSessionId(serverSessionId));
       reduxStore.dispatch(setEndpoint(endpoint));
       baseUrl = req.session.baseUrl ? `/${req.session.baseUrl}/` : "";
-      console.log(`index.js setting baseurl to: ${baseUrl}`);
+      // console.log(`index.js setting baseurl to: ${baseUrl}`);
       reduxStore.dispatch(setBaseUrl(baseUrl));
     } else {
       if (reduxStore.getState().sessionData) {
@@ -73,9 +73,11 @@ class Index extends React.Component {
     return {
       isFetching: serverIsFetching,
       sessionData: userSessionData,
-      userSelection: userSessionData.userSelection,
+      userSelection: userSessionData?userSessionData.userSelection:null,
       qrData: reduxStore.getState().qrData,
-      baseurl: reduxStore.getState().baseUrl
+      baseurl: reduxStore.getState().baseUrl,
+      serverSessionId: reduxStore.getState().serverSessionId,
+      
     };
   }
 
@@ -123,7 +125,7 @@ class Index extends React.Component {
       </Card>,
       <Card style={{ minHeight: "47rem" }}>
         <Card.Header>Issue an eIDAS eID Verifiable Credential</Card.Header>
-        <Card.Img variant="top" src={getPath("eID.png")} />
+        <Card.Img  style={{ minHeight: "18rem" }}variant="top" src={getPath("eID.png")} />
         <Card.Body>
           <Card.Title>
             Click Next to generate an eIDAS eID Verifiable Credential
@@ -139,16 +141,42 @@ class Index extends React.Component {
           <Card.Link href="#">
             <Link
               // as={getPath("issue-eidas")}
-              href={`${this.props.baseUrl}issue-eidas`}
+              href={`${this.props.baseUrl}vc/issue/eidas`}
             >
               <Button variant="primary">Next</Button>
             </Link>
           </Card.Link>
         </Card.Body>
       </Card>,
+
+      <Card style={{ minHeight: "47rem" }}>
+        <Card.Header>
+          Issue GR Ministry of Education based Verifiable Credential
+        </Card.Header>
+        <Card.Img style={{ minHeight: "18rem" }} variant="top" src={getPath("minedu.jpg")} />
+        <Card.Body>
+          <Card.Title>
+            Click Next to generate a Verifiable Credential GR MinEdu AcademicId.
+          </Card.Title>
+          <Card.Subtitle className="mb-2 text-muted">
+            Available for Greek Students and Academic Staff only
+          </Card.Subtitle>
+          <Card.Text>
+            You will be required to authenticate using your University's
+            Infrastructure. <br />
+            SEAL will issue a Verifiable Credential your Academic Attributes.
+          </Card.Text>
+          <Card.Link href="#">
+            <Link href={`${this.props.baseUrl}issue-gr-academic-id`}>
+              <Button variant="primary">Next</Button>
+            </Link>
+          </Card.Link>
+        </Card.Body>
+      </Card>,
+
       <Card style={{ minHeight: "47rem" }}>
         <Card.Header>Issue an eduGAIN Verifiable Credential</Card.Header>
-        <Card.Img variant="top" src={getPath("edugain.png")} />
+        <Card.Img style={{ minHeight: "18rem" }} variant="top" src={getPath("edugain.png")} />
         <Card.Body>
           <Card.Title>
             Click Next to generate an eduGAIN eID Verifiable Credential
@@ -166,36 +194,10 @@ class Index extends React.Component {
           <Card.Link href="#">Next</Card.Link>
         </Card.Body>
       </Card>,
-      <Card style={{ minHeight: "47rem" }}>
-        <Card.Header>
-          Issue GR Ministry of Education based Verifiable Credential
-        </Card.Header>
-        <Card.Img variant="top" src={getPath("minedu.jpg")} />
-        <Card.Body>
-          <Card.Title>
-            Click Next to generate a Verifiable Credential GR MinEdu AcademicId.
-          </Card.Title>
-          <Card.Subtitle className="mb-2 text-muted">
-            Available for Greek Students and Academic Staff only
-          </Card.Subtitle>
-          <Card.Text>
-            You will be required to authenticate using your University's
-            Infrastructure. <br />
-            SEAL will issue a Verifiable Credential your Academic Attributes.
-          </Card.Text>
-          <Card.Link href="#">
-            <Link
-              as={getPath("academicId/academicId-authenticate")}
-              href="academicId/academicId-authenticate"
-            >
-              <Button variant="primary">Next</Button>
-            </Link>
-          </Card.Link>
-        </Card.Body>
-      </Card>,
+
       <Card style={{ minHeight: "47rem" }}>
         <Card.Header>Build Your Own Verifiable Credential</Card.Header>
-        <Card.Img variant="top" src={getPath("puzzle.png")} />
+        <Card.Img style={{ minHeight: "18rem" }} variant="top" src={getPath("puzzle.png")} />
         <Card.Body>
           <Card.Title>
             Click Next select which attributes to include in a Credential.
@@ -223,23 +225,20 @@ class Index extends React.Component {
     let mobileCards = (
       <Layout>
         <Row style={{ marginTop: "3rem" }}>
-        <Col xs={1} style={{ marginTop: "auto", marginBottom: "auto" }}>
-          </Col>
+          <Col xs={1} style={{ marginTop: "auto", marginBottom: "auto" }}></Col>
 
           <Col xs={10} className={"container"}>
             <Row>
-              {cards
-                .map((card, indx) => {
-                  return (
-                    <Col key={indx} sm={4} xs={12}>
-                      {card}
-                    </Col>
-                  );
-                })}
+              {cards.map((card, indx) => {
+                return (
+                  <Col key={indx} sm={4} xs={12}>
+                    {card}
+                  </Col>
+                );
+              })}
             </Row>
           </Col>
-          <Col xs={1} style={{ marginTop: "auto", marginBottom: "auto" }}>
-          </Col>
+          <Col xs={1} style={{ marginTop: "auto", marginBottom: "auto" }}></Col>
         </Row>
       </Layout>
     );
@@ -288,10 +287,6 @@ class Index extends React.Component {
         </Row>
       </Layout>
     );
-
-    if (isMobile()) {
-      console.log("hey we are in mobile env!!");
-    }
 
     return isMobile() ? mobileCards : desktopCards;
   }

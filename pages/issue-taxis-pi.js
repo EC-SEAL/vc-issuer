@@ -27,7 +27,7 @@ import PairOrCard from "../components/PairOrCard";
 
 */
 
-class IssueEidas extends React.Component {
+class IssueTaxisPI extends React.Component {
   constructor(props) {
     super(props);
     this.dispatch = props.dispatch;
@@ -66,13 +66,12 @@ class IssueEidas extends React.Component {
   }
 
   componentDidMount() {
-    if (this.props.sessionData && this.props.sessionData.eidas) {
-      let toSelect = [this.props.sessionData.eidas];
-      this.props.setEidasToSelection(toSelect);
+    if (this.props.sessionData && this.props.sessionData.taxis) {
+      let toSelect = [this.props.sessionData.taxis];
+      this.props.setTaxistToSelection(toSelect);
     }
 
     if (!this.props.DID) {
-      console.log(`issue-eidas-secure:: no DID auth found in redux store`);
       this.props.makeConnectionRequest();
     }
   }
@@ -81,35 +80,33 @@ class IssueEidas extends React.Component {
     const hasRequiredAttributes =
       this.props.sessionData !== null &&
       this.props.sessionData !== undefined &&
-      this.props.sessionData.eidas !== undefined;
+      this.props.sessionData.taxis !== undefined;
 
     let keycloakEidasPath = `${this.props.baseUrl}eidas/eidas-authenticate-secure?uuid=${this.props.uuid}`;
-    // let result = <div>Generating Wallet Pairing Request...</div>;
 
-    let eIDASLoginButton = !hasRequiredAttributes ? (
+    let taxisLoginButton = !hasRequiredAttributes ? (
       <a className="btn btn-primary" href={keycloakEidasPath} role="button">
-        eIDAS
+        TAXIS
       </a>
     ) : (
       <Button variant="primary" disabled>
-        eIDAS
+        TAXIS
       </Button>
     );
 
     let issueVCBut = (
       <IssueVCButton
         hasRequiredAttributes={hasRequiredAttributes}
-        // vcIssuanceEndpoint={"/issueVCSecure"}
         baseUrl={this.props.baseUrl}
         userSelection={this.props.userSelection}
         uuid={this.props.uuid}
-        vcType={"SEAL-EIDAS"}
+        vcType={"TAXIS-PI"}
       />
     );
 
-    let eidasCard = (
+    let taxisCard = (
       <Card className="text-center" style={{ marginTop: "2rem" }}>
-        <Card.Header>Issue an eIDAS based Verifiable Credential</Card.Header>
+        <Card.Header>Issue an Personal Information Verifiable Credential from TAXIS</Card.Header>
         <Card.Body>
           <Card.Title>
             {hasRequiredAttributes
@@ -122,18 +119,17 @@ class IssueEidas extends React.Component {
           </Card.Text>
           <Container>
             <Row>
-              <Col>{eIDASLoginButton}</Col>
+              <Col>{taxisLoginButton}</Col>
               <Col>{issueVCBut}</Col>
             </Row>
           </Container>
         </Card.Body>
-        {/* <Card.Footer className="text-muted">2 days ago</Card.Footer> */}
       </Card>
     );
     let stepNumber = !this.props.DID ? 0 : hasRequiredAttributes ? 2 : 1;
     let stepperSteps = [
       { title: "Pair your wallet" },
-      { title: 'Authenticate over "eIDAS-eID"' },
+      { title: 'Authenticate over "TAXIS"' },
       { title: "Request Issuance" }
     ];
 
@@ -144,7 +140,7 @@ class IssueEidas extends React.Component {
         baseUrl={this.props.baseUrl}
         uuid={this.props.uuid}
         serverSessionId={this.props.serverSessionId}
-        card={eidasCard}
+        card={taxisCard}
         vcSent={this.props.vcSent}
       />
     );
@@ -181,7 +177,7 @@ function mapStateToProps(state) {
 
 const mapDispatchToProps = dispatch => {
   return {
-    setEidasToSelection: set => {
+    setTaxistToSelection: set => {
       dispatch(addSetToSelection(set));
     },
     setSteps: steps => {
@@ -200,4 +196,4 @@ const mapDispatchToProps = dispatch => {
   };
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(IssueEidas);
+export default connect(mapStateToProps, mapDispatchToProps)(IssueTaxisPI);

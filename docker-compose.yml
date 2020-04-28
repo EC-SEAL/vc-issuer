@@ -6,29 +6,6 @@ services:
     ports:
       - 11111:11211
 
-   academicId:
-    image: endimion13/amka-check
-    environment:
-      MINEDU_TOKEN_USERNAME: uaegean
-      MINEDU_TOKEN_PASSWORD: k6v5sS4l1s!%
-      MINEDU_TOKEN_GRANTTYPE: password
-      MINEDU_QUERYID_URL: https://gateway.interoperability.gr/academicId/1.0.1/queryID
-      MINEDU_QUERY_BY_AMKA: https://gateway.interoperability.gr/academicId/1.0.1/student/
-      MINEDU_TOKEN_URL: https://validation.interoperability.gr:9443/OAUTH2Proxy_1.0.0/services/oauthproxy/authorization/token
-      MEMCACHED_HOST: memcached
-      MEMCACHED_PORT: 11211
-      CALLBACK: http://localhost/issuer/academicId/check
-    ports:
-      - 8080:8080
-
-
-   uporthelper:
-    image: endimion13/uport-verifier
-    environment:
-      PRODUCTION: "true"
-      KEYCLOAK: https://e482db27.ngrok.io
-    ports:
-      - 3000:3000
 
    uportissuer:
     image: endimion13/uport-issuer
@@ -38,9 +15,44 @@ services:
       HTTPS_COOKIES: "false"
       MEMCACHED_URL: memcached:11211
       BASE_PATH: "issuer"
-      ACADEMICID_TOKEN_END: http://nginx/academic-id-check/attributes
+      SENDER_ID: "IdPms001"
+      RECEIVER_ID: "IdPms001"
+      SEAL_eIDAS_CALLBACK_URI: "http://issuer/vc/response/eidas"
     ports:
       - 4000:3000
+
+   IdPMS:
+    image: endimion13/seal-eidas-idp:0.0.6
+    environment:
+        - EIDAS_PROPERTIES=CurrentFamilyName,CurrentGivenName,DateOfBirth,PersonIdentifier
+        - SP_COUNTRY=GR
+        - SP_LOGO=img/logo.png
+        - SP_CONFIG_REPOSITORY=/configEidas/
+        - SP_SECRET=secret
+        - AUTH_DURATION=1800
+        - SESSION_MANAGER_URL=https://esmo-gateway.eu
+        - KEY_PASS=selfsignedpass
+        - JWT_CERT_ALIAS=selfsigned
+        - ASYNC_SIGNATURE=true
+        - HTTPSIG_CERT_ALIAS=1
+        - KEYSTORE_PATH=/certs/keystore.jks
+        - STORE_PASS=keystorepass
+        - SEAL_SUPPORTED_SIG_ALGORITHMS=RSA
+        - SEAL_SUPPORTED_ENC_ALGORITHMS=RSA
+        - RESPONSE_SENDER_ID=eIDAS-IdP
+        - RESPONSE_RECEIVER=API_GW
+        - SEAL_EXPOSE_URL=/as/authenticate
+        - SEAL_ENTITY_ID=https://seal.eu/eidas-idp
+        - SEAL_DEFAULT_NAME=SEAL_EIDAS_IDP
+    volumes: 
+        - /home/nikos/NetBeansProjects/seal.eidas.idp/src/test/resources/testKeys/:/certs/    
+    ports:
+      - 8091:8080
+      - 8443:8443
+
+
+
+
 
    nginx: 
      image: nginx:latest

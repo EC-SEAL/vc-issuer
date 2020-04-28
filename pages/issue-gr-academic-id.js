@@ -12,7 +12,7 @@ import { connect } from "react-redux";
 import Link from "next/link";
 import { Button, Row, Col, Card, Container } from "react-bootstrap";
 import MyStepper from "../components/Stepper";
-const uuidv1 = require('uuid/v1');
+const uuidv1 = require("uuid/v1");
 
 class IssueEidas extends React.Component {
   constructor(props) {
@@ -27,7 +27,7 @@ class IssueEidas extends React.Component {
     if (typeof window === "undefined") {
       userSessionData = req.session.userData;
       reduxStore.dispatch(setEndpoint(req.session.enpoint));
-      let baseUrl = req.session.baseUrl?`/${req.session.baseUrl}/`:'';
+      let baseUrl = req.session.baseUrl ? `/${req.session.baseUrl}/` : "";
       reduxStore.dispatch(setBaseUrl(baseUrl));
     } else {
       if (reduxStore.getState().sessionData) {
@@ -58,11 +58,11 @@ class IssueEidas extends React.Component {
     if (
       this.props.sessionData &&
       this.props.sessionData.eidas &&
-      this.props.sessionData.academicId
+      this.props.sessionData.fullAcademicId
     ) {
       let toSelect = [
         this.props.sessionData.eidas,
-        this.props.sessionData.academicId
+        this.props.sessionData.fullAcademicId
       ];
       this.props.setSetsToSelection(toSelect);
     }
@@ -76,7 +76,7 @@ class IssueEidas extends React.Component {
     let eIDASLoginButton = !hasEidasRequiredAttr ? (
       <a
         className="btn btn-primary"
-        href="/test/is-student-eidas-authenticate"
+        href="/test/academicId-eidas-authenticate"
         role="button"
       >
         eIDAS
@@ -93,11 +93,11 @@ class IssueEidas extends React.Component {
       this.props.sessionData.academicId !== undefined;
 
     let token = uuidv1();
-    let eduGAINButton =
+    let academicIdButton =
       !hasAcademicIdRequiredAttr && hasEidasRequiredAttr ? (
         <a
           className="btn btn-primary"
-          href={`/academic-id-check/query?sessionId=${token}`}
+          href={`/academic-id-check/query?sessionId=full-${token}`}
           role="button"
         >
           AcademicId
@@ -108,18 +108,25 @@ class IssueEidas extends React.Component {
           disabled
           style={{ backgroundColor: "#00c642" }}
         >
-          eduGAIN
+          AcademicId
         </Button>
       ) : (
         <Button variant="primary" disabled>
-          eduGAIN
+          AcademicId
         </Button>
       );
 
+    let vcIssuanceLink = "/issue/SEAL-ACADEMICID";
+    let vcIssuanceHref = "/issue/[vcType]";
+
+    // console.log(
+    //   `issue-gr-academic-id.js - render:: vcIssanceLink ${vcIssuanceLink}`
+    // );
     let credentialCard = (
       <Card className="text-center" style={{ marginTop: "2rem" }}>
         <Card.Header>
-          Issue a Verifiable Credential proving your are a University Student
+          Issue a Verifiable Credential linking your eIDAS eID with your Greek
+          Academic Attributes
         </Card.Header>
         <Card.Body>
           <Card.Title>
@@ -134,12 +141,14 @@ class IssueEidas extends React.Component {
           <Container>
             <Row>
               <Col>{eIDASLoginButton}</Col>
-              <Col>{eduGAINButton}</Col>
+              <Col>{academicIdButton}</Col>
               <Col>
-                <Link href="/issue">
+                <Link as={vcIssuanceLink} href={vcIssuanceHref}>
                   <Button
                     variant="primary"
-                    disabled={!hasEidasRequiredAttr || !hasAcademicIdRequiredAttr}
+                    disabled={
+                      !(hasAcademicIdRequiredAttr && hasEidasRequiredAttr)
+                    }
                   >
                     Issue Verifiable Claim
                   </Button>
@@ -163,7 +172,7 @@ class IssueEidas extends React.Component {
     //icon:'/eduGAIN-icon.png'
     let stepperSteps = [
       { title: 'Authenticate over "eIDAS-eID"' },
-      { title: 'Authenticate over "eduGAIN"' },
+      { title: 'Authenticate over "GR-AcademicId"' },
       { title: "Request Issuance" },
       { title: "Accept Verifiable Credential" }
     ];
@@ -180,6 +189,16 @@ class IssueEidas extends React.Component {
           </Col>
         </Row>
         {credentialCard}
+
+        <Row>
+          <div className="col" style={{ marginTop: "1.5rem" }}>
+            <Link href={this.props.baseUrl ? `${this.props.baseUrl}` : "/"}>
+              <Button variant="primary" className="float-right">
+                Home
+              </Button>
+            </Link>
+          </div>
+        </Row>
       </Layout>
     );
   }
@@ -202,7 +221,7 @@ const mapDispatchToProps = dispatch => {
     setSteps: steps => {
       dispatch(setStepperSteps(steps));
     },
-    setEndPoint :endpont =>{
+    setEndPoint: endpont => {
       dispatch(setEndpoint(endpoint));
     }
   };

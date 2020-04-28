@@ -12,8 +12,7 @@ import { connect } from "react-redux";
 import Link from "next/link";
 import { Button, Row, Col, Card, Container } from "react-bootstrap";
 import MyStepper from "../components/Stepper";
-import {getPath} from '../helpers/pathHelper';
-
+import { getPath } from "../helpers/pathHelper";
 
 class IssueEidas extends React.Component {
   constructor(props) {
@@ -28,7 +27,7 @@ class IssueEidas extends React.Component {
     if (typeof window === "undefined") {
       userSessionData = req.session.userData;
       reduxStore.dispatch(setEndpoint(req.session.enpoint));
-      let baseUrl = req.session.baseUrl?`/${req.session.baseUrl}/`:'';
+      let baseUrl = req.session.baseUrl ? `/${req.session.baseUrl}/` : "";
       reduxStore.dispatch(setBaseUrl(baseUrl));
     } else {
       if (reduxStore.getState().sessionData) {
@@ -73,14 +72,10 @@ class IssueEidas extends React.Component {
       `issue-eidas.js:: hasRequiredAttributes ${hasRequiredAttributes} `
     );
 
-      let path = `${this.props.baseUrl}test/eidas-authenticate`
+    let path = `${this.props.baseUrl}test/eidas-authenticate`;
 
     let eIDASLoginButton = !hasRequiredAttributes ? (
-      <a
-        className="btn btn-primary"
-        href={path}
-        role="button"
-      >
+      <a className="btn btn-primary" href={path} role="button">
         eIDAS
       </a>
     ) : (
@@ -89,7 +84,11 @@ class IssueEidas extends React.Component {
       </Button>
     );
 
-    let vcIssuanceLink = this.props.baseUrl?`${this.props.baseUrl}issue`:'/issue'
+    // let vcIssuanceLink = this.props.baseUrl?`${this.props.baseUrl}issue/SEAL-EIDAS`:'/issue/SEAL-EIDAS'
+    // let vcIssuanceHref = this.props.baseUrl?`issue/[vcType]]`:'/issue/[vcType]'
+
+    let vcIssuanceLink = "/issue/SEAL-EIDAS";
+    let vcIssuanceHref = "/issue/[vcType]";
     let eidasCard = (
       <Card className="text-center" style={{ marginTop: "2rem" }}>
         <Card.Header>Issue an eIDAS based Verifiable Credential</Card.Header>
@@ -107,7 +106,7 @@ class IssueEidas extends React.Component {
             <Row>
               <Col>{eIDASLoginButton}</Col>
               <Col>
-                <Link as={vcIssuanceLink} href={`/issue`}>
+                <Link as={vcIssuanceLink} href={vcIssuanceHref}>
                   <Button variant="primary" disabled={!hasRequiredAttributes}>
                     Issue Verifiable Claim
                   </Button>
@@ -137,6 +136,16 @@ class IssueEidas extends React.Component {
           </Col>
         </Row>
         {eidasCard}
+
+        <Row>
+          <div className="col" style={{marginTop:"1.5rem"}}>
+            <Link href={this.props.baseUrl?`${this.props.baseUrl}`:"/"}>
+              <Button variant="primary" className="float-right">
+                Home
+              </Button>
+            </Link>
+          </div>
+        </Row>
       </Layout>
     );
   }
@@ -159,7 +168,7 @@ const mapDispatchToProps = dispatch => {
     setSteps: steps => {
       dispatch(setStepperSteps(steps));
     },
-    setEndPoint :endpont =>{
+    setEndPoint: endpont => {
       dispatch(setEndpoint(endpoint));
     }
   };

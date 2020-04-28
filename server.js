@@ -10,7 +10,6 @@ const handle = app.getRequestHandler();
 const bodyParser = require("body-parser");
 const session = require("express-session");
 const MemcachedStore = require("connect-memcached")(session);
-
 const axios = require("axios");
 
 import { subscribe } from "./back-services/server-sent-events";
@@ -22,16 +21,26 @@ const credentialsIssuanceConnectionResponse = require("./back-controllers/contro
   .credentialsIssuanceConnectionResponse;
 const issueVc = require("./back-controllers/controllers").issueVC;
 
-// const proxy = require("http-proxy-middleware");
-// const proxyOptions = {
-//   target: `http://localhost:${port}/`,
-//   // target:`http://localhost/issuer/`,
-//   // changeOrigin: true,
-//   pathRewrite: {
-//     "^/issuer": ""
-//   }
-// };
-// const exampleProxy = proxy(proxyOptions);
+const onlyConnectionRequest = require("./back-controllers/controllers")
+  .onlyConnectionRequest;
+const onlyConnectionResponse = require("./back-controllers/controllers")
+  .onlyConnectionResponse;
+const onlyIssueVC = require("./back-controllers/controllers").onlyIssueVC;
+
+import { getCache } from "./helpers/CacheHelper";
+const claimsCache = getCache();
+
+import {
+  makeSession,
+  update,
+  makeToken,
+  validate,
+  sealIssueVC
+} from "./back-controllers/sealApiControllers";
+
+import { validateToken, getSessionData } from "./back-services/sealServices";
+
+import { makeUserDetails } from "./helpers/DataStoreHelper";
 
 let endpoint = "";
 
@@ -51,48 +60,35 @@ if (isProduction) {
   console.log(`will set sessionstore to memcache ${process.env.MEMCACHED_URL}`);
   SESSION_CONF.store = new MemcachedStore({
     hosts: [process.env.MEMCACHED_URL],
-    secret: "123, easy as ABC. ABC, easy as 123" // Optionally use transparent encryption for memcache session data
+    secret: "123, easy as ABC. ABC, easy as 123", // Optionally use transparent encryption for memcache session data
+    ttl: 90000,
+    maxExpiration: 90000
   });
 }
 
 // keycloack confniguration
 
 const KeycloakMultiRealm = require("./back-services/KeycloakMultiRealm");
-
-const esmoRealmConfig = {
-  realm: "esmo",
+const SEAL_EIDAS_URI=process.env.SEAL_EIDAS_URI?process.env.SEAL_EIDAS_URI:'vm.project-seal.eu'
+const SEAL_EIDAS_PORT=process.env.SEAL_EIDAS_PORT?process.env.SEAL_EIDAS_PORT:'8091'
+const SEAL_EDUGAIN_URI= process.env.SEAL_EDUGAIN_URI?process.env.SEAL_EDUGAIN_URI:'vm.project-seal.eu'
+const SEAL_EDUGAIN_PORT=process.env.SEAL_EDUGAIN_PORT?process.env.SEAL_EDUGAIN_PORT:''
+ 
+const eidasRealmConfig = {
+  realm: "eidas",
   "auth-server-url": "https://esmo-gateway.eu/auth",
   "ssl-required": "none",
-  resource: "test-esmo-ssi",
+  resource: "testClient",
   credentials: {
-    secret: "84528348-48d5-4fb0-a230-bb2aff6c45d4"
+    secret: "317f5c96-dbf9-45f0-9c46-f8d7e7934b8c"
   },
   "confidential-port": 0
 };
 
-const eidasRealmConfig = {
-  realm: "test",
-  "auth-server-url": "https://dss1.aegean.gr/auth",
-  "ssl-required": "none",
-  resource: "testClient2",
-  credentials: {
-    secret: "fff6237e-5bf1-4713-8926-023180eeb0f0"
-  },
-  "confidential-port": 0,
-  "redirect-rewrite-rules": {
-    "^http://uportissuer:3000/(.*)$": "http://localhost/issuer/$1"
-  }
-};
-
 const keycloak = new KeycloakMultiRealm({ store: memoryStore }, [
-  esmoRealmConfig,
+  // esmoRealmConfig,
   eidasRealmConfig
 ]);
-
-// var Keycloak = require("keycloak-connect");
-// var keycloak = new Keycloak({
-//   store: memoryStore
-// });
 
 //end of keycloak config
 
@@ -101,8 +97,6 @@ app.prepare().then(() => {
   server.set("trust proxy", 1); // trust first proxy
   server.use(bodyParser.urlencoded({ extended: true }));
   server.use(bodyParser.json({ type: "*/*" }));
-  // server.use(multer()); // for parsing multipart/form-data
-  // //urlencoded
 
   // set session managment
   if (process.env.HTTPS_COOKIES === true) {
@@ -111,214 +105,186 @@ app.prepare().then(() => {
   server.use(session(SESSION_CONF));
   server.use(keycloak.middleware());
 
-  // if(!dev){
-  //   // server.use(['/issuer', '/_next', '/static'], exampleProxy)
-  //   server.use(['/issuer?', ], exampleProxy)
-  // }
-
   //start server sent events for the server
   server.get("/events", subscribe);
 
-  server.post("/makeConnectionRequest", (req, res) => {
-    req.endpoint = endpoint;
-    return makeConnectionRequest(req, res);
-  });
-
-  // accepts a connection request response
-  server.post("/cacheUserConnectionRequest", (req, res) => {
-    return cacheUserConnectionRequest(req, res);
-  });
-
-  server.post("/issueVCReq", (req, res) => {
-    // console.log("server.js issueVCReq");
-    // console.log(`server.js-issueVCReq::found existing session ${req.session.id}`);
-    req.endpoint = endpoint;
-    req.baseUrl = process.env.BASE_PATH;
-    if (req.session.id) {
-      // console.log(`requested new VC issuance  on session ${req.session.id}`);
-      // console.log(`with data`);
-      // console.log(req.body.data);
-      return issueVc(req, res);
-    }
-  });
-
-  // credentials-issuance-connectionResponse
-  server.post("/requestIssueResponse", (req, res) => {
-    console.log(`server.hs requestIssueResponse called!!`);
-    req.session.baseUrl = process.env.BASE_PATH;
-    return credentialsIssuanceConnectionResponse(req, res);
-  });
-
+  
   server.get(["/home", "/"], (req, res) => {
-    console.log(`server.js-home::found existing session ${req.session.id}`);
-    //TODO make an API call here usinsg a redirection parameter to get the
-    // user attributes from the backend
-    //TODO format of these data
-    const mockData = {
-      eduGAIN: {
-        isStudent: "true",
-        source: "eduGAIN",
-        loa: "low"
-      },
-      TAXISnet: {
-        name: "Nikos",
-        surname: "Triantafyllou",
-        loa: "low",
-        source: "TAXISnet"
-      }
-    };
+    // console.log(`server.js-home::found existing session ${req.session.id}`);
+    const mockData = {};
     if (!req.session.userData) req.session.userData = mockData;
     req.session.endpoint = endpoint;
     req.session.baseUrl = process.env.BASE_PATH;
-
     return app.render(req, res, "/", req.query);
   });
 
-  server.get(["/attribute-selector"], (req, res) => {
-    // console.log(req.session.userData);
-    console.log(
-      `server.js-attribute-selector::found existing session ${req.session.id}`
-    );
-    req.session.baseUrl = process.env.BASE_PATH;
-    return app.render(req, res, "/attribute-selector", req.query);
+   
+  /*
+    ######################################
+    #### SECURE CONTROLLERS ############//
+  */
+
+  server.post("/issueVCSecure", (req, res) => {
+    req.endpoint = endpoint;
+    console.log("server.js -- issueVCSecure::  issueVCSecure");
+    return onlyIssueVC(req, res);
   });
 
-  // Protected by Keycloak Routes
-  // server.get(["/test/eidas-authenticate","/issuer/test/eidas-authenticate"], keycloak.protect(), (req, res) => {
-  server.get(
-    ["/test/eidas-authenticate", "/issuer/test/eidas-authenticate"],
-    keycloak.protect(),
-    (req, res) => {
-      console.log("we accessed a protected root!");
-      // see mockJwt.json for example response
-      const idToken = req.kauth.grant.access_token.content;
-      // console.log(req.kauth.grant);
-      // console.log(idToken)
-      const userDetails = {
-        // email: idToken.email,
-        given_name: idToken.given_name,
-        family_name: idToken.family_name,
-        // sending_institution_page: idToken.sending_institution_page,
-        // gender: idToken.gender,
-        // institutional_email: idToken.institutional_email,
-        person_identifier: idToken.person_identifier,
-        // mobile_phone: idToken.mobile_phone,
-        // sending_institution_name: idToken.sending_institution_name,
-        // sending_institution_address: idToken.sending_institution_address,
-        // place_of_birth: idToken.place_of_birth,
-        date_of_birth: idToken.date_of_birth,
-        source: "eidas",
-        loa: idToken.loa
-        // sending_institution_name_2: idToken.sending_institution_name_2
-      };
-
-      console.log(`server.js:: user-details`);
-      if (req.session.userData) {
-        console.log(`${req.session.userData}`);
-        req.session.userData.eidas = userDetails;
-      } else {
-        req.session.userData = {};
-        req.session.userData.eidas = userDetails;
-      }
-      req.endpoint = process.env.ENDPOINT; // this gets lost otherwise, on the server redirection
-      req.session.baseUrl = process.env.BASE_PATH;
-      return app.render(req, res, "/issue-eidas", req.query);
-    }
-  );
-
-  server.get(
-    "/test/is-student-eidas-authenticate",
-    keycloak.protect(),
-    (req, res) => {
-      const idToken = req.kauth.grant.access_token.content;
-      const userDetails = {
-        given_name: idToken.given_name,
-        family_name: idToken.family_name,
-        person_identifier: idToken.person_identifier,
-        date_of_birth: idToken.date_of_birth,
-        source: "eidas",
-        loa: idToken.loa
-      };
-      if (req.session.userData) {
-        console.log(`${req.session.userData}`);
-        req.session.userData.eidas = userDetails;
-      } else {
-        req.session.userData = {};
-        req.session.userData.eidas = userDetails;
-      }
-      req.endpoint = endpoint; // this gets lost otherwise, on the server redirection
-      req.session.baseUrl = process.env.BASE_PATH;
-      return app.render(req, res, "/issue-is-student", req.query);
-    }
-  );
-
-  server.get(
-    "/esmo/is-student-esmo-authenticate",
-    keycloak.protect(),
-    (req, res) => {
-      const idToken = req.kauth.grant.access_token.content;
-      const userDetails = {
-        eduPersonAffiliation: idToken.eduPersonAffiliation,
-        source: "edugain",
-        loa: idToken.loa ? idToken.loa : "low"
-      };
-      if (req.session.userData) {
-        console.log(`${req.session.userData}`);
-        req.session.userData.edugain = userDetails;
-      } else {
-        req.session.userData = {};
-        req.session.userData.edugain = userDetails;
-      }
-      req.endpoint = endpoint; // this gets lost otherwise, on the server redirection
-      req.session.baseUrl = process.env.BASE_PATH;
-      console.log(`user details is-student-esmo-authenticate::`);
-      console.log(userDetails);
-      return app.render(req, res, "/issue-is-student", req.query);
-    }
-  );
-
-  // Protected by the second Keycloak realm
-  server.get(
-    ["/academicId/academicId-authenticate"],
-    keycloak.protect(),
-    (req, res) => {
-      console.log("this is a test");
-    }
-  );
-
-  server.post("/academicId/check", async (req, res) => {
-    const token = req.body.token;
-    const attributeRetrievalEndpoint = process.env.ACADEMICID_TOKEN_END;
   
-    try {
-      let response = await axios.get(`${attributeRetrievalEndpoint}?token=${token}`);
-
-      // .then(response => {
-      let result = response.data.result;
-      let inspectionResult = result.inspectionResult;
-      // console.log(inspectionResult)
-      const userDetails = {
-        eduPersonAffiliation: inspectionResult.studentshipType,
-        source: "academicId",
-        loa: inspectionResult.loa ? inspectionResult.loa : "low"
-      };
-      if (req.session.userData) {
-        console.log(`${req.session.userData}`);
-        req.session.userData.academicId = userDetails;
-      } else {
-        req.session.userData = {};
-        req.session.userData.academicId = userDetails;
-      }
-      req.endpoint = endpoint; // this gets lost otherwise, on the server redirection
-      req.session.baseUrl = process.env.BASE_PATH;
-      return app.render(req, res, "/issue-is-student", req.query);
-    } catch (error) {
-      console.log(error);
-      return app.render(req, res, "/error", req.query);
+  // ###############################################
+  server.post(
+    [
+      "/onlyConnectionRequest",
+      "/vc/issue/onlyConnectionRequest",
+      "/vc/onlyConnectionRequest"
+    ],
+    (req, res) => {
+      req.endpoint = endpoint;
+      req.baseUrl = process.env.BASE_PATH;
+      console.log(
+        "server.js -- onlyConnectionRequest::  onlyConnectionRequest"
+      );
+      return onlyConnectionRequest(req, res);
     }
-    
+  );
+
+  server.post(
+    [
+      "/onlyConnectionResponse",
+      "/vc/issue/onlyConnectionResponse",
+      "/vc/onlyConnectionResponse"
+    ],
+    (req, res) => {
+      req.endpoint = endpoint;
+      console.log(
+        "server.js -- onlyConnectionResponse::  onlyConnectionResponse"
+      );
+      return onlyConnectionResponse(req, res);
+    }
+  );
+
+  // ############################################### //#endregion
+
+  /*
+    ######################################
+    #### SEAL Specific Controllers ############
+    ########################################
+  */
+  server.post(
+    ["/seal/start-session", "/vc/issue/seal/start-session"],
+    async (req, res) => {
+      console.log("server:: /seal/start-session");
+      let result = await makeSession(req, res);
+      return result;
+    }
+  );
+
+  server.post(
+    ["/seal/update-session", "/vc/issue/seal/update-session"],
+    async (req, res) => {
+      console.log("server:: /seal/update-session");
+      let result = await update(req, res);
+      return result;
+    }
+  );
+
+  server.get(
+    ["/seal/make-eidas-token", "/vc/issue/seal/make-eidas-token","/vc/make-eidas-token"],
+    async (req, res) => {
+      console.log("server:: /vc/make-eidas-token");
+      req.query.sender = process.env.SENDER_ID?process.env.SENDER_ID: "eIDAS-IdP";
+      req.query.receiver = process.env.RECEIVER_ID?process.env.SENDER_ID:"eIDAS-IdP";
+      // sessionId is provided by the caller
+      let result = await makeToken(req, res);
+      return result;
+    }
+  );
+
+  server.post("/seal/issueVC", (req, res) => {
+    req.endpoint = endpoint;
+    console.log("server.js -- /seal/issueVC::  /seal/issueVC");
+    return sealIssueVC(req, res);
   });
 
+  // ### SEAL View Controllers (after calling other SEAL MSes)
+
+  server.post(["/vc/eidas/response"], async (req, res) => {
+    console.log("server:: /vc/eidas/response");
+    const msToken = req.body.token;
+    console.log(`server:: /vc/eidas/response, the token is ${msToken}`);
+    // sessionId is provided by the caller
+    let sessionId = await validateToken(msToken);
+    let dataStore = JSON.parse(await getSessionData(sessionId, "dataStore"));
+    // let DID = await getSessionData(sessionId,"DID")
+    // console.log(dataStore);
+
+    req.session.DID = true;
+    req.session.userData = makeUserDetails(dataStore);
+    req.session.sealSession = sessionId;
+
+    req.session.endpoint = endpoint;
+    req.session.baseUrl = process.env.BASE_PATH;
+    return app.render(req, res, "/vc/issue/eidas", req.query);
+  });
+
+  server.get(["/vc/issue/eidas"], async (req, res) => {
+    if (req.query.msToken) {
+      // console.log("server.js:: /vc/issue/eidas -- got here on an existing seal session")
+      // 1 retrieve SEAL sessionId
+      // 1.1 check if the user has performed DID auth at a previous step.
+      // 2  retrieve datastore object
+      //    add results in the userData
+      // 3 pass the seal session to the front end
+      let sessionId = await validateToken(req.query.msToken);
+      let ds = await getSessionData(sessionId, "dataStore");
+      // console.log(ds)
+
+      let did = await getSessionData(sessionId, "DID");
+      if (did) {
+        req.session.DID = true;
+      }
+
+      if (ds) {
+        let dataStore = JSON.parse(ds);
+        req.session.userData = makeUserDetails(dataStore);
+      }
+
+      req.session.sealSession = sessionId;
+      
+    }
+
+    req.session.endpoint = endpoint;
+    req.session.baseUrl = process.env.BASE_PATH;
+    req.eidasUri = SEAL_EIDAS_URI
+    req.eidasPort = SEAL_EIDAS_PORT
+    let redirect = process.env.BASE_PATH?`${endpoint}/${process.env.BASE_PATH}/vc/eidas/response`:`${endpoint}/vc/eidas/response`
+    req.eidasRedirectUri =  redirect
+    console.log(req.eidasRedirectUri)
+    return app.render(req, res, "/vc/issue/eidas", req.query);
+  });
+
+  server.get(["/vc/didAuth"], async (req, res) => {
+    let msToken = req.query.msToken;
+    // 1. get SEAL sessionId
+    // 2. display view with only didAuth request
+    // 2.1 inside this view perform didAuth and update seal session
+    // 2.2 inside this view at the end of didAuth redirect to clientCallbackAddr
+    let sessionId = await validateToken(msToken);
+    let clientCallbackAddr = await await getSessionData(
+      sessionId,
+      "ClientCallbackAddr"
+    );
+    req.session.sealSession = sessionId;
+    req.session.callback = clientCallbackAddr;
+    req.session.endpoint = endpoint;
+    req.session.baseUrl = process.env.BASE_PATH;
+
+    req.session.endpoint = endpoint;
+    req.session.baseUrl = process.env.BASE_PATH;
+    return app.render(req, res, "/vc/didAuth", req.query);
+  });
+
+  // ################################################################33
   server.all("*", (req, res) => {
     return handle(req, res);
   });

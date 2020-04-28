@@ -12,7 +12,7 @@ import { connect } from "react-redux";
 import Link from "next/link";
 import { Button, Row, Col, Card, Container } from "react-bootstrap";
 import MyStepper from "../components/Stepper";
-const uuidv1 = require('uuid/v1');
+const uuidv1 = require("uuid/v1");
 
 class IssueEidas extends React.Component {
   constructor(props) {
@@ -27,7 +27,7 @@ class IssueEidas extends React.Component {
     if (typeof window === "undefined") {
       userSessionData = req.session.userData;
       reduxStore.dispatch(setEndpoint(req.session.enpoint));
-      let baseUrl = req.session.baseUrl?`/${req.session.baseUrl}/`:'';
+      let baseUrl = req.session.baseUrl ? `/${req.session.baseUrl}/` : "";
       reduxStore.dispatch(setBaseUrl(baseUrl));
     } else {
       if (reduxStore.getState().sessionData) {
@@ -116,6 +116,9 @@ class IssueEidas extends React.Component {
         </Button>
       );
 
+    let vcIssuanceLink = "/issue/SEAL-STUDENT";
+    let vcIssuanceHref = "/issue/[vcType]";
+
     let credentialCard = (
       <Card className="text-center" style={{ marginTop: "2rem" }}>
         <Card.Header>
@@ -136,10 +139,12 @@ class IssueEidas extends React.Component {
               <Col>{eIDASLoginButton}</Col>
               <Col>{eduGAINButton}</Col>
               <Col>
-                <Link href="/issue">
+              <Link as={vcIssuanceLink} href={vcIssuanceHref}>
                   <Button
                     variant="primary"
-                    disabled={!hasEidasRequiredAttr || !hasAcademicIdRequiredAttr}
+                    disabled={
+                      !hasEidasRequiredAttr || !hasAcademicIdRequiredAttr
+                    }
                   >
                     Issue Verifiable Claim
                   </Button>
@@ -180,6 +185,16 @@ class IssueEidas extends React.Component {
           </Col>
         </Row>
         {credentialCard}
+
+        <Row>
+          <div className="col" style={{ marginTop: "1.5rem" }}>
+            <Link href={this.props.baseUrl ? `${this.props.baseUrl}` : "/"}>
+              <Button variant="primary" className="float-right">
+                Home
+              </Button>
+            </Link>
+          </div>
+        </Row>
       </Layout>
     );
   }
@@ -202,7 +217,7 @@ const mapDispatchToProps = dispatch => {
     setSteps: steps => {
       dispatch(setStepperSteps(steps));
     },
-    setEndPoint :endpont =>{
+    setEndPoint: endpont => {
       dispatch(setEndpoint(endpoint));
     }
   };

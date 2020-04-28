@@ -1,16 +1,17 @@
 import React from "react";
 import Link from "next/link";
+import { withRouter } from "next/router";
 import { connect } from "react-redux";
-import Layout from "../components/Layout";
-import QrPrompt from "../components/QrPrompt";
-import MyStepper from "../components/Stepper";
-import SSE from "../components/Sse";
+import Layout from "../../components/Layout";
+import QrPrompt from "../../components/QrPrompt";
+import MyStepper from "../../components/Stepper";
+import SSE from "../../components/Sse";
 const message = require("uport-transports").message.util;
 const transport = require("uport-transports").transport;
-import { requestVCgeneration } from "../store";
+import { requestVCgeneration } from "../../store";
 import { Button, Row, Col } from "react-bootstrap";
-import isMobile from "../helpers/isMobile";
-import Router from 'next/router'
+import isMobile from "../../helpers/isMobile";
+import Router from "next/router";
 
 class Issue extends React.Component {
   constructor(props) {
@@ -30,10 +31,16 @@ class Issue extends React.Component {
   }
 
   requestVC() {
+    const { vcType } = this.props.router.query;
     console.log(`will request the creation of a requestVC`);
+    console.log(`[vcType.js] :: the pathi is ${vcType}`);
+    let url = this.props.baseUrl
+      ? `${this.props.baseUrl}issueVCReq`
+      : `/issueVCReq`;
     this.props.makeIssueRequest(
-      `${this.props.baseUrl}issueVCReq`,
+      url,
       this.props.userSelection,
+      vcType,
       isMobile()
     );
   }
@@ -78,16 +85,9 @@ class Issue extends React.Component {
       if (this.props.qrData && isMobile()) {
         const urlTransport = transport.url.send();
         urlTransport(this.props.qrData);
-        // tranport.url.onResponse().then(res => {
-        //   const payload = res.payload;
-        //   const id = res.id;
-        //   console.log(
-        //     "issue.js:: got response in mobile!! how do we handle this??"
-        //   );
-        //   //after the response go back home!
-        //   Router.push('/home')
-        // });
-        Router.push(`${this.props.baseUrl}`)
+        //TODO maybe add a check here with SSE if the
+        // user received the VC?
+        Router.push(`${this.props.baseUrl}`);
       }
 
       if (this.props.qrData && !this.props.vcSent) {
@@ -100,6 +100,7 @@ class Issue extends React.Component {
               qrData={this.props.qrData}
               message={"SEAL is requesting to connect your uPort wallet:"}
               permissions={["Push Notifications"]}
+              baseUrl={this.props.baseUrl}
             />
             <SSE uuid={this.props.uuid} endpoint={sseEndpoint} />
           </div>
@@ -117,19 +118,20 @@ class Issue extends React.Component {
               <MyStepper
                 steps={this.props.stepperSteps}
                 activeNum={this.props.stepperSteps.length - 1}
-                // completeColor={"#00c642"}
               />
             </Col>
           </Row>
 
           {result}
-          <div className="col">
-            <Link href="/">
+          <Row>
+          <div className="col" style={{marginTop:"1.5rem"}}>
+            <Link href={this.props.baseUrl?`${this.props.baseUrl}`:"/"}>
               <Button variant="primary" className="float-right">
                 Home
               </Button>
             </Link>
           </div>
+        </Row>
         </Layout>
       );
     } else {
@@ -162,10 +164,10 @@ function mapStateToProps(state) {
 
 const mapDispatchToProps = dispatch => {
   return {
-    makeIssueRequest: (url, data, isMobile = false) => {
-      dispatch(requestVCgeneration(url, data, isMobile));
+    makeIssueRequest: (url, data, vcType, isMobile = false) => {
+      dispatch(requestVCgeneration(url, data, vcType, isMobile));
     }
   };
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(Issue);
+export default withRouter(connect(mapStateToProps, mapDispatchToProps)(Issue));
