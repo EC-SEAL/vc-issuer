@@ -12,8 +12,14 @@ SSI Verifiable Credential Issuer for SEAL service
       BASE_PATH: "issuer"
       SENDER_ID: "IdPms001"
       RECEIVER_ID: "IdPms001"
+      MEMCACHED_URL: memcached:11211
     ports:
       - 4000:3000
+
+  memcached:
+    image: sameersbn/memcached:1.5.6-2
+    ports:
+      - 11112:11211    
 ```
 ```
   ENDPOINT: the server the service is deployed at
