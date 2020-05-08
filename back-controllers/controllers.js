@@ -219,13 +219,23 @@ function cacheUserConnectionRequest(req, res) {
 async function onlyConnectionRequest(req, res) {
   console.log(`controller.js - onlyConnectionRequest:: `);
   let sealSession = req.body.sealSession;
+  let vcType = req.body.vcType;
+  console.log(`sealSession is ${sealSession}`)
+  console.log(`vcType is ${vcType}`);
   // console.log(`controller.js:: onlyConnectionRequset:: seal session ${sealSession}`)
   let isMobile = req.body.isMobile ? true : false;
   let callback = req.baseUrl
     ? `${req.endpoint}/${req.baseUrl}/onlyConnectionResponse?sealSession=${sealSession}`
     : req.endpoint + "/onlyConnectionResponse?sealSession=" + sealSession;
-  // // store connection between sessionId - uuid
+  let redirectUri = req.baseUrl
+  ? `${req.endpoint}/${req.baseUrl}/vc/issue/${vcType}?sealSession=${sealSession}`
+  : req.endpoint + `/vc/issue/${vcType}?sealSession=` + sealSession;
+  
+    // // store connection between sessionId - uuid
   // claimsCache.set(uuid, req.session.id, 1200000); // cached for 20 minutes
+
+  console.log(`redirectUri :: ${redirectUri}`)
+
 
   // store in the sessionManager the (sealSession,issuerSession)
   let sessionUpdated = await updateSessionData(
@@ -233,8 +243,8 @@ async function onlyConnectionRequest(req, res) {
     "issuerSession",
     req.session.id
   );
-  console.log("server-onlyConnectionRequest:: ");
-  console.log(sessionUpdated);
+  // console.log("server-onlyConnectionRequest:: ");
+  // console.log(sessionUpdated);
 
   credentials
     .createDisclosureRequest({
@@ -246,17 +256,14 @@ async function onlyConnectionRequest(req, res) {
       act: "none",
     })
     .then((requestToken) => {
-      console.log("requestToken:");
-      console.log(requestToken);
-      // const uri = message.paramsToQueryString(
-      //   message.messageToURI(requestToken),
-      //   { callback_type: "post" }
-      // );
+      // console.log("requestToken:");
+      // console.log(requestToken);
       if (isMobile) {
         console.log(
           "contorllers.js :: onlyConnectionRequet -- connection request sent in mobile mode"
         );
-        res.send({ qr: requestToken, uuid: sealSession });
+        //?callback_type=redirect&redirect_url=${redirectUri}
+        res.send({ qr: `${requestToken}`, uuid: sealSession });
       } else {
         console.log(
           "contorllers.js :: onlyConnectionRequet -- connection request sent in QR mode"

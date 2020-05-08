@@ -253,6 +253,18 @@ app.prepare().then(() => {
       
     }
 
+    //if we are redirected from mobile 
+    if(req.query.sealSession){
+      req.session.sealSession = req.query.sealSession
+      let did = await getSessionData(req.query.sealSession, "DID");
+      console.log(`for the session ${req.query.sealSession}  i got the DID data ${did}`);
+      if (did) {
+        req.session.DID = true;
+      }
+    }
+
+
+
     req.session.endpoint = endpoint;
     req.session.baseUrl = process.env.BASE_PATH;
     req.eidasUri = SEAL_EIDAS_URI

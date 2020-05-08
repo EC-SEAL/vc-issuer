@@ -493,9 +493,10 @@ export function makeSealSession(baseUrl) {
   };
 }
 
-export function makeOnlyConnectionRequest(sealSession, baseUrl, isMobile) {
+export function makeOnlyConnectionRequest(sealSession, baseUrl, vcType,isMobile) {
   let postData = {
     sealSession: sealSession,
+    vcType: vcType
   };
 
   if (isMobile) {
@@ -515,7 +516,7 @@ export function makeOnlyConnectionRequest(sealSession, baseUrl, isMobile) {
   };
 }
 
-export function makeSealSessionWithDIDConnecetionRequest(baseUrl, isMobile) {
+export function makeSealSessionWithDIDConnecetionRequest(baseUrl,  vcType, isMobile) {
   console.log(
     "store:: makeSealSessionWithDIDConnecetionRequest -- onlyConnectionRequest"
   );
@@ -538,6 +539,7 @@ export function makeSealSessionWithDIDConnecetionRequest(baseUrl, isMobile) {
           .post(`${baseUrl}onlyConnectionRequest`, {
             sealSession: sessionId,
             baseUrl: baseUrl,
+            vcType: vcType,
             isMobile: isMobile
           })
           .then((data) => {

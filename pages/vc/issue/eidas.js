@@ -22,9 +22,9 @@ import MyStepper from "../../../components/Stepper";
 import HomeButton from "../../../components/HomeButton";
 import IssueVCButton from "../../../components/IssueVCButton";
 import PairOrCard from "../../../components/PairOrCard";
+import ConnectMobile from "../../../components/ConnectMobile";
 import isMobile from "../../../helpers/isMobile";
 
-const transport = require("uport-transports").transport;
 /*
   Secure flow:
   - check in session if DID is present. This is not only the DID of the user but the whole connection response
@@ -66,7 +66,7 @@ class IssueEidas extends React.Component {
         `eidas.js:: in the server the seal session is:: ${req.session.sealSession}`
       );
       reduxStore.dispatch(setEidasUriPort(req.eidasUri, req.eidasPort));
-      reduxStore.dispatch(setEidasRedirectUri(req.eidasRedirectUri))
+      reduxStore.dispatch(setEidasRedirectUri(req.eidasRedirectUri));
     } else {
       if (reduxStore.getState().sessionData) {
         userSessionData = reduxStore.getState().sessionData;
@@ -84,6 +84,8 @@ class IssueEidas extends React.Component {
     }
     if (DIDOk) {
       reduxStore.dispatch(completeDIDAuth(sealSession));
+    }
+    if (sealSession) {
       reduxStore.dispatch(setSealSession(sealSession));
     }
 
@@ -108,15 +110,20 @@ class IssueEidas extends React.Component {
       // console.log(`${new Date()} DID not found`);
       if (!this.props.sealSession) {
         // console.log("startSealSessionAndDidAuth")
-        console.log(`isMobile ${isMobile()}`)
+        console.log(`isMobile ${isMobile()}`);
 
-        this.props.startSealSessionAndDidAuth(this.props.baseUrl,isMobile()); //and then makeConnectionRequest
+        this.props.startSealSessionAndDidAuth(
+          this.props.baseUrl,
+          "eidas",
+          isMobile()
+        ); //and then makeConnectionRequest
       } else {
         // console.log("makeConnectionRequest")
-        console.log(`isMobile ${isMobile()}`)
+        console.log(`isMobile ${isMobile()}`);
         this.props.makeConnectionRequest(
           this.props.sealSession,
           this.props.baseUrl,
+          "eidas",
           isMobile()
         );
       }
@@ -155,22 +162,29 @@ class IssueEidas extends React.Component {
   }
 
   render() {
+    let stepNumber = !this.props.DID ? 0 : this.hasRequiredAttributes ? 2 : 1;
+    let stepperSteps = [
+      { title: "Pair your wallet" },
+      { title: 'Authenticate over "eIDAS-eID"' },
+      { title: "Request Issuance" },
+    ];
+
     if (this.props.qrData && isMobile() && !this.props.DID) {
-      const urlTransport = transport.url.send();
-      console.log("the uport deep link is::")
-      console.log(this.props.qrData)
-      
-      urlTransport(this.props.qrData);
       return (
         <Layout>
           <Row>
             <Col>
-              <div>Please, authorize the connnection request on your wallet app</div>
+              <MyStepper steps={stepperSteps} activeNum={stepNumber} />
             </Col>
           </Row>
-          <Row>
-            <HomeButton baseUrl={this.props.baseUrl} />
-          </Row>
+          <ConnectMobile
+            baseUrl={this.props.baseUrl}
+            qrData={this.props.qrData}
+            DID={this.props.DID}
+            uuid={this.props.uuid}
+            serverSessionId={this.props.serverSessionId}
+            sealSession={this.props.sealSession}
+          />
         </Layout>
       );
     }
@@ -217,12 +231,6 @@ class IssueEidas extends React.Component {
         {/* <Card.Footer className="text-muted">2 days ago</Card.Footer> */}
       </Card>
     );
-    let stepNumber = !this.props.DID ? 0 : this.hasRequiredAttributes ? 2 : 1;
-    let stepperSteps = [
-      { title: "Pair your wallet" },
-      { title: 'Authenticate over "eIDAS-eID"' },
-      { title: "Request Issuance" },
-    ];
 
     let result = (
       <PairOrCard
@@ -268,7 +276,7 @@ function mapStateToProps(state) {
     eidasUri: state.eidasUri,
     eidasPort: state.eidasPort,
     endpoint: state.endpoint,
-    eidasRedirectUri: state.eidasRedirectUri
+    eidasRedirectUri: state.eidasRedirectUri,
   };
 }
 
@@ -283,8 +291,10 @@ const mapDispatchToProps = (dispatch) => {
     setEndPoint: (endpont) => {
       dispatch(setEndpoint(endpoint));
     },
-    makeConnectionRequest: (sealSession, baseUrl, isMobile) => {
-      dispatch(makeOnlyConnectionRequest(sealSession, baseUrl,isMobile));
+    makeConnectionRequest: (sealSession, baseUrl, vcType, isMobile) => {
+      dispatch(
+        makeOnlyConnectionRequest(sealSession, baseUrl, vcType, isMobile)
+      );
     },
     didAuthOK: (uuid) => {
       dispatch(completeDIDAuth(uuid));
@@ -292,8 +302,10 @@ const mapDispatchToProps = (dispatch) => {
     startSealSession: (baseUrl) => {
       dispatch(makeSealSession(baseUrl));
     },
-    startSealSessionAndDidAuth: (baseUrl, isMobile) => {
-      dispatch(makeSealSessionWithDIDConnecetionRequest(baseUrl, isMobile));
+    startSealSessionAndDidAuth: (baseUrl, vcType, isMobile) => {
+      dispatch(
+        makeSealSessionWithDIDConnecetionRequest(baseUrl, vcType, isMobile)
+      );
     },
     setTheSealSession: (sessionId) => {
       dispatch(setSealSession(sessionId));
@@ -302,11 +314,9 @@ const mapDispatchToProps = (dispatch) => {
       dispatch(setEidasUriPort(uri, data));
     },
 
-    setEidasRedirect :(uri) =>{
-      dispatch(setEidasRedirectUri(uri))
+    setEidasRedirect: (uri) => {
+      dispatch(setEidasRedirectUri(uri));
     },
-
-
   };
 };
 
