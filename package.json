@@ -19,7 +19,7 @@
     "connect-memcached": "^1.0.0",
     "did-jwt": "^3.0.0",
     "did-resolver": "^1.0.0",
-    "elliptic": "^6.5.1",
+    "elliptic": "^6.5.4",
     "esm": "^3.2.25",
     "ethr-did-resolver": "^1.0.2",
     "eventemitter3": "^4.0.0",
